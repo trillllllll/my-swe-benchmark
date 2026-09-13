@@ -1,0 +1,2 @@
+add(0, 2) must equal 2
+add(3, 0) must equal 3

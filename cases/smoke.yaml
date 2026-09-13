@@ -1,0 +1,5 @@
+name: smoke
+version: 1
+cases:
+  - cases/ts-bug-001
+  - cases/py-bug-001

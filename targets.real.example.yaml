@@ -1,0 +1,32 @@
+# 本文件用于真实 CLI。不要加 command_prefix: [python]；那是 fake target 的配置。
+# 先确认各 CLI 已登录，再按自己的账号/模型修改 model。
+targets:
+  claude-sonnet-real:
+    adapter: claude-code
+    executable: claude
+    model: claude-sonnet-4-6
+    mode: stream-json
+    permission_mode: acceptEdits
+    pass_env: [ANTHROPIC_API_KEY]
+
+  codex-gpt-real:
+    adapter: codex
+    executable: codex
+    model: gpt-5
+    sandbox: workspace-write
+    approval_policy: never
+    pass_env: [OPENAI_API_KEY, CODEX_API_KEY]
+
+  opencode-real:
+    adapter: opencode
+    executable: opencode
+    model: openai-compatible/qwen
+    pass_env: [OPENAI_API_KEY]
+
+  gemini-real:
+    adapter: gemini
+    executable: gemini
+    model: gemini-2.5-pro
+    mode: stream-json
+    permission_mode: yolo
+    pass_env: [GEMINI_API_KEY, GOOGLE_API_KEY]

@@ -1,0 +1,2 @@
+normalizeValue(0) must equal 0
+normalizeValue(4) must equal 4

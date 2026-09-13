@@ -1,0 +1,10 @@
+id: py-bug-001
+version: 1
+category: bug
+level: L1
+fixture: fixture
+instruction: prompt.md
+limits:
+  timeout_seconds: 20
+grader:
+  command: [python, grader/check.py]

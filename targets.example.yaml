@@ -1,0 +1,50 @@
+targets:
+  claude-sonnet:
+    adapter: claude-code
+    executable: tests/fake_agent.py
+    command_prefix: [python]
+    model: claude-sonnet-4-6
+    mode: stream-json
+    permission_mode: bypassPermissions
+    pass_env: []
+
+  codex-gpt:
+    adapter: codex
+    executable: tests/fake_agent.py
+    command_prefix: [python]
+    model: gpt-5
+    sandbox: workspace-write
+    approval_policy: never
+    pass_env: []
+
+  opencode-qwen:
+    adapter: opencode
+    executable: tests/fake_agent.py
+    command_prefix: [python]
+    model: openai-compatible/qwen
+    pass_env: []
+
+  gemini-pro:
+    adapter: gemini
+    executable: tests/fake_agent.py
+    command_prefix: [python]
+    model: gemini-pro
+    mode: stream-json
+    permission_mode: yolo
+    pass_env: []
+
+  # These targets use the first-party Python SDKs directly.  They are not
+  # used by the offline fake-agent matrix above and may consume model quota.
+  # Credentials are passed only when the named environment variable exists.
+  codex-sdk-gpt:
+    adapter: codex-sdk
+    model: gpt-5.6-terra
+    sandbox: workspace-write
+    approval_policy: never
+    pass_env: [OPENAI_API_KEY, CODEX_API_KEY]
+
+  claude-agent-sonnet:
+    adapter: claude-agent-sdk
+    model: claude-sonnet-4-6
+    permission_mode: acceptEdits
+    pass_env: [ANTHROPIC_API_KEY]
