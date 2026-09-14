@@ -11,6 +11,22 @@ from .base import AgentRunResult, EventSink, NormalizedEvent, RunSpec
 from .common import base_environment, classify_default, command_base, parse_json_event
 
 
+def _decode_process_line(chunk: bytes) -> str:
+    """Decode CLI output across UTF-8 and Windows' active code page."""
+    try:
+        return chunk.decode("utf-8")
+    except UnicodeDecodeError:
+        # Windows tools such as taskkill commonly emit the system code page
+        # (cp936 on Chinese installations), while agent CLIs usually emit
+        # UTF-8.  Try the active Windows codec before replacing characters.
+        for encoding in ("mbcs", "cp936") if os.name == "nt" else ("latin-1",):
+            try:
+                return chunk.decode(encoding)
+            except (LookupError, UnicodeDecodeError):
+                continue
+        return chunk.decode("utf-8", errors="replace")
+
+
 class _CliAdapter:
     """Shared streaming process runner for vendor CLIs."""
 
@@ -73,7 +89,7 @@ class _CliAdapter:
                     chunk = await stream.readline()
                     if not chunk:
                         break
-                    line = chunk.decode("utf-8", errors="replace")
+                    line = _decode_process_line(chunk)
                     sink.append(line)
                     event = self.parse_event(line)
                     if event is not None:
@@ -188,6 +204,10 @@ class ClaudeCodeAdapter(_CliAdapter):
         command = [*command_base(spec), "--print"]
         if target.mode:
             command += ["--output-format", target.mode]
+            if target.mode == "stream-json":
+                # Claude Code requires --verbose when stream-json is used
+                # together with --print.
+                command += ["--verbose"]
         if target.model:
             command += ["--model", target.model]
         if target.permission_mode:

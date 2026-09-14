@@ -1,0 +1,20 @@
+# 最小真实链路配置。
+# 先只选一个 target 试跑，确认链路正常后再同时选择两个。
+targets:
+  codex-real:
+    adapter: codex
+    executable: codex
+    # 使用本机 Codex 配置中可用的模型；如账号列表不同，请替换成可用 slug。
+    model: gpt-6-astra
+    sandbox: workspace-write
+    approval_policy: never
+    # 如果 CLI 使用环境变量认证，只会注入这里列出的变量。
+    pass_env: [OPENAI_API_KEY, CODEX_API_KEY]
+
+  claude-real:
+    adapter: claude-code
+    executable: claude
+    model: claude-sonnet-4-6
+    mode: stream-json
+    permission_mode: acceptEdits
+    pass_env: [ANTHROPIC_API_KEY]

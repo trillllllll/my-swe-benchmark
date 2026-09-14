@@ -172,12 +172,14 @@ suite 运行结束会打印 `case × target` 表格，并在 `runs/`（或 `--ru
 
 真实 CLI 的 adapter 已经实现。可以直接复制 [`targets.real.example.yaml`](C:/Users/13431/Documents/ChatGPT/my-swe-benchmark/targets.real.example.yaml)；真实 target 不要保留 fake 配置里的 `command_prefix: [python]`：
 
+想先做一次最小真实链路验证，可以直接使用 [`targets.real.quick.yaml`](C:/Users/13431/Documents/ChatGPT/my-swe-benchmark/targets.real.quick.yaml)。它只包含 Codex 和 Claude 两个真实 target。启动 TUI 后选择 `py-bug-001`，再只勾选一个 target，在预览页确认即可。这个任务只要求把 `src/calculator.py` 中的 `return a or b` 改为 `return a + b`。
+
 ```yaml
 targets:
   codex-real:
     adapter: codex
     executable: codex
-    model: gpt-5
+    model: gpt-6-astra
     sandbox: workspace-write
     approval_policy: never
 ```

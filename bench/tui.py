@@ -27,7 +27,7 @@ import yaml
 from rich.markup import escape as escape_markup
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen, Screen
 from textual.widgets import (
     Button,
@@ -767,6 +767,13 @@ class SelectionScreen(Screen[None]):
         event.item.add_class("selected")
 
     def selected_case(self) -> CaseInfo | None:
+        # ListView highlights the first case as soon as the screen opens.
+        # Treat that highlighted row as the active selection so users can
+        # proceed directly to Preview without pressing Enter first.
+        case_list = self.query_one("#case-list", ListView)
+        highlighted_index = case_list.index
+        if highlighted_index is not None and 0 <= highlighted_index < len(self.bench_app.case_infos):
+            return self.bench_app.case_infos[highlighted_index]
         for index, case in enumerate(self.bench_app.case_infos):
             item = self.query_one(f"#case-{index}", ListItem)
             if item.has_class("selected"):
@@ -925,8 +932,12 @@ class RunScreen(Screen[None]):
     RunScreen { layout: vertical; }
     #run-body { height: 1fr; }
     #run-sidebar { width: 30; border: round $panel; }
-    #run-detail { width: 1fr; border: round $panel; padding: 1; overflow: auto; }
+    #run-detail { width: 1fr; border: round $panel; padding: 1; overflow: hidden; }
     #run-status { height: auto; padding: 0 1; }
+    /* Keep scrolling on the log widget itself so wheel events over the text
+       are handled consistently across Textual versions. */
+    #run-content-scroll { height: 1fr; }
+    #run-content { width: 1fr; }
     """
 
     def __init__(self, app: "BenchTuiApp", controller: TuiRunController, case: CaseInfo) -> None:
@@ -953,7 +964,8 @@ class RunScreen(Screen[None]):
                         )
             with Vertical(id="run-detail"):
                 yield Static("", id="run-status", markup=False)
-                yield Static("", id="run-content", markup=False)
+                with VerticalScroll(id="run-content-scroll"):
+                    yield Static("", id="run-content", markup=False)
         yield Footer()
 
     def on_mount(self) -> None:
@@ -979,6 +991,11 @@ class RunScreen(Screen[None]):
         return f"{item.target.name}  [{item.status}]{duration}"
 
     def _refresh_view(self) -> None:
+        scroll = self.query_one("#run-content-scroll", VerticalScroll)
+        # Preserve the user's scroll position.  A live run follows new output
+        # only while the viewer was already at the bottom; scrolling upward
+        # manually opts out until the user returns to the bottom.
+        follow_tail = scroll.scroll_y >= scroll.max_scroll_y - 1
         summary = self.controller.summary()
         self.query_one("#run-status", Static).update(
             f"Case {self.case.case_id} | total {summary['total']} | queued {summary['queued']} "
@@ -1002,10 +1019,14 @@ class RunScreen(Screen[None]):
                 detail = event.get("summary") or event.get("tool") or ""
                 lines.append(f"  [{target_name}] {event.get('kind', 'event')}: {detail}")
             content.update("\n".join(lines))
+            if follow_tail:
+                scroll.call_after_refresh(scroll.scroll_end, animate=False)
             return
         item = self.controller.get(self.selected_key)
         if item is None:
             content.update("No target selected")
+            if follow_tail:
+                scroll.call_after_refresh(scroll.scroll_end, animate=False)
             return
         if self.view == "events":
             lines = [f"{item.target.name} | attempt {item.attempt} | status {item.status}", ""]
@@ -1024,6 +1045,8 @@ class RunScreen(Screen[None]):
                 f"{item.target.name} | attempt {item.attempt} | status {item.status} | view {self.view}"
                 f"{error_line}\n\n{body}"
             )
+        if follow_tail:
+            scroll.call_after_refresh(scroll.scroll_end, animate=False)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         key = self._sidebar_keys.get(event.item.id or "")

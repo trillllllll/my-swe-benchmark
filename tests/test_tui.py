@@ -223,6 +223,28 @@ def test_tui_selection_preview_and_run_pilot(tmp_path: Path) -> None:
     asyncio.run(run())
 
 
+def test_tui_preview_accepts_default_highlighted_case(tmp_path: Path) -> None:
+    """The initially highlighted case is selectable without an extra Enter."""
+
+    async def run() -> None:
+        app = BenchTuiApp(
+            targets_file=ROOT / "targets.example.yaml",
+            cases_dir=ROOT / "cases",
+            runs_dir=tmp_path / "runs",
+        )
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.click("#config-continue")
+            await pilot.pause()
+            assert app.screen.__class__.__name__ == "SelectionScreen"
+            assert app.screen.selected_case() == app.case_infos[0]
+            await pilot.click("#target-codex-gpt")
+            await pilot.click("#selection-preview")
+            await pilot.pause()
+            assert app.screen.__class__.__name__ == "PreviewScreen"
+
+    asyncio.run(run())
+
+
 def test_discover_cases_ignores_invalid_yaml(tmp_path: Path) -> None:
     bad = tmp_path / "broken"
     bad.mkdir()
