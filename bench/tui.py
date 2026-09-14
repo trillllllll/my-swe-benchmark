@@ -465,17 +465,14 @@ class TuiRunController:
 
     async def stop_all(self) -> None:
         # A rerun is a short-lived orchestration task which may be between
-        # cancelling the previous attempt and creating the replacement.  Stop
-        # those flights first, then sweep every attempt ever created.  The
-        # second sweep closes the race where a replacement is created just as
-        # the first sweep starts.
+        # cancelling the previous attempt and creating the replacement. Sweep
+        # every attempt first (to release semaphore slots), then drain those
+        # flights. The second sweep closes the race where a replacement is
+        # created just as the first sweep starts.
         self._stopping_all = True
         try:
             for name in self._rerun_locks:
                 self._stop_generations[name] += 1
-            flights = [flight for flight in self._rerun_flights.values() if not flight.done()]
-            if flights:
-                await asyncio.gather(*flights, return_exceptions=True)
             for _ in range(2):
                 active_items = {
                     id(item): item
@@ -488,6 +485,22 @@ class TuiRunController:
                 await asyncio.gather(
                     *(self._stop_item(item) for item in active_items.values()), return_exceptions=True
                 )
+                # A rerun flight can itself be waiting for a queued previous
+                # attempt.  We stop attempts first (which releases the
+                # semaphore), then wait for those orchestration flights.  If
+                # we awaited flights before this sweep, a queued rerun could
+                # wait forever while the running attempt holding the only
+                # semaphore slot remained active.
+                flights = [flight for flight in self._rerun_flights.values() if not flight.done()]
+                if flights:
+                    await asyncio.gather(*flights, return_exceptions=True)
+                    flights = []
+            # In the no-active-items case, still drain any flight that was
+            # created just before the sweep. Generation invalidation prevents
+            # it from creating a replacement attempt.
+            flights = [flight for flight in self._rerun_flights.values() if not flight.done()]
+            if flights:
+                await asyncio.gather(*flights, return_exceptions=True)
         finally:
             self._stopping_all = False
 
