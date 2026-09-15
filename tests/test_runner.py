@@ -277,6 +277,8 @@ def test_case_emits_lifecycle_and_event_callbacks_after_persisting(tmp_path):
     assert lifecycle[-1].result["status"] == "passed"
     assert events
     assert events[0]["seq"] == 1
+    assert "category" in events[0]
+    assert json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))["event_schema_version"] == 2
     persisted = [json.loads(line) for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()]
     assert events == persisted
 

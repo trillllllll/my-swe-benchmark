@@ -58,17 +58,18 @@ def parse_json_event(line: str, source: str) -> NormalizedEvent | None:
     try:
         value: Any = json.loads(text)
     except json.JSONDecodeError:
-        return NormalizedEvent(
+        event = NormalizedEvent(
             kind="text",
             source=source,
             raw=line,
             summary=line.rstrip("\r\n"),
             data={"text": line.rstrip("\r\n")},
         )
+        return enrich_event(event)
     if isinstance(value, dict):
         event_type = str(value.get("type") or value.get("event") or value.get("kind") or "json")
         tool = _event_tool(value)
-        return NormalizedEvent(
+        event = NormalizedEvent(
             kind=event_type,
             source=source,
             raw=value,
@@ -76,7 +77,53 @@ def parse_json_event(line: str, source: str) -> NormalizedEvent | None:
             tool=tool,
             data={"payload": value},
         )
-    return NormalizedEvent(kind="json", source=source, raw=value, data={"payload": value})
+        return enrich_event(event)
+    return enrich_event(NormalizedEvent(kind="json", source=source, raw=value, data={"payload": value}))
+
+
+def enrich_event(event: NormalizedEvent) -> NormalizedEvent:
+    """Map common vendor event names to stable semantic fields."""
+    name = event.kind.lower().replace("/", "_").replace("-", "_")
+    value = event.raw if isinstance(event.raw, dict) else {}
+    nested = value.get("item") if isinstance(value.get("item"), dict) else {}
+    semantic_name = " ".join(str(value.get(key, "")) for key in ("type", "event", "kind", "status"))
+    semantic_name += " " + " ".join(str(nested.get(key, "")) for key in ("type", "name", "kind"))
+    name = f"{name} {semantic_name}".lower().replace("/", "_").replace("-", "_")
+    text = event.summary or ""
+    category, action, status, title = "unknown", "updated", "unknown", "未识别事件"
+    if any(x in name for x in ("session", "thread")):
+        category, title = "session", "会话"
+    if any(x in name for x in ("assistant", "message", "text", "delta")):
+        category, title = "assistant", "助手消息"
+    if any(x in name for x in ("think", "reason")):
+        category, title = "thinking", "正在分析"
+    if any(x in name for x in ("tool", "function", "mcp")):
+        category, title = "tool", "调用工具"
+    if any(x in name for x in ("command", "shell", "exec")):
+        category, title = "command", "执行命令"
+    if any(x in name for x in ("file", "patch", "edit", "write")):
+        category, title = "file", "修改文件"
+    if any(x in name for x in ("approval", "permission")):
+        category, title = "approval", "等待授权"
+    if any(x in name for x in ("error", "fail")):
+        category, status, title = "error", "failed", "执行错误"
+    if any(x in name for x in ("complete", "finish", "done", "result")):
+        category, status, title = "completion", "success", "任务完成"
+    if "start" in name or name.endswith("_begin"):
+        action, status = "started", "running"
+    elif any(x in name for x in ("complete", "finish", "end", "result", "success")):
+        action, status = "finished", "success"
+    elif any(x in name for x in ("error", "fail")):
+        action, status = "failed", "failed"
+    command = value.get("command") if isinstance(value.get("command"), str) else None
+    if command is None and isinstance(nested.get("command"), str):
+        command = nested["command"]
+    paths = value.get("paths") or value.get("files") or ()
+    if isinstance(paths, str): paths = (paths,)
+    if not isinstance(paths, (list, tuple)): paths = ()
+    return NormalizedEvent(**{**event.__dict__, "category": category, "action": action,
+        "status": status, "title": title, "detail": text or command, "command": command,
+        "paths": tuple(str(p) for p in paths)})
 
 
 def classify_default(return_code: int | None, timed_out: bool) -> str:

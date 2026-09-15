@@ -1016,8 +1016,20 @@ class RunScreen(Screen[None]):
                 for event in item.events
             ]
             for _, target_name, event in sorted(timeline, key=lambda entry: entry[0])[-50:]:
-                detail = event.get("summary") or event.get("tool") or ""
-                lines.append(f"  [{target_name}] {event.get('kind', 'event')}: {detail}")
+                category = event.get("category") or event.get("kind", "event")
+                title = event.get("title") or event.get("summary") or event.get("tool") or ""
+                if category == "session" and event.get("kind"):
+                    title = f"{title} ({event['kind']})"
+                elif event.get("kind") and "." in str(event["kind"]):
+                    title = f"{title or category} ({event['kind']})"
+                detail = event.get("detail") or event.get("command") or ""
+                if category == "thinking":
+                    title = "正在分析"
+                    detail = ""
+                suffix = f" - {detail}" if detail and detail != title else ""
+                status = event.get("status")
+                marker = f" [{status}]" if status and status != "unknown" else ""
+                lines.append(f"  [{target_name}] {title}{marker}{suffix}")
             content.update("\n".join(lines))
             if follow_tail:
                 scroll.call_after_refresh(scroll.scroll_end, animate=False)
@@ -1036,6 +1048,21 @@ class RunScreen(Screen[None]):
             if item.result and item.result.get("error") and not item.error:
                 lines.append(f"Error: {item.result['error']}")
                 lines.append("")
+            lines.append("Timeline:")
+            for event in item.events[-100:]:
+                category = event.get("category") or event.get("kind", "event")
+                title = event.get("title") or event.get("summary") or event.get("tool") or category
+                if category == "thinking":
+                    title = "正在分析"
+                detail = event.get("detail") or event.get("command") or ""
+                status = event.get("status")
+                marker = f" [{status}]" if status and status != "unknown" else ""
+                suffix = f" - {detail}" if detail and detail != title else ""
+                lines.append(f"  {title}{marker}{suffix}")
+            # Keep raw payloads available in the target detail view for
+            # diagnostics while making the semantic timeline the first thing
+            # users see.
+            lines.extend(["", "Raw events:"])
             lines += [json.dumps(event, ensure_ascii=False, default=str) for event in item.events[-100:]]
             content.update("\n".join(lines) or "No events yet")
         elif self.view in {"stdout", "stderr"}:

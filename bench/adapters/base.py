@@ -42,6 +42,14 @@ class NormalizedEvent:
     tool: str | None = None
     channel: str | None = None
     data: dict[str, Any] = field(default_factory=dict)
+    category: str = "unknown"
+    action: str = "updated"
+    title: str | None = None
+    detail: str | None = None
+    status: str = "unknown"
+    command: str | None = None
+    paths: tuple[str, ...] = ()
+    duration_ms: int | None = None
 
 
 @dataclass(frozen=True)

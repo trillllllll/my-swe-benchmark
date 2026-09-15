@@ -285,6 +285,8 @@ SDK target 可能产生真实模型费用。第一次运行前确认本机已经
 
 ## 运行产物
 
+`events.jsonl` 使用事件 schema v2：CLI 原始事件会先转换为统一语义字段（`category`、`action`、`title`、`status`、`detail`），同时保留 `raw` 原始 payload。TUI 和终端默认显示语义时间线，完整 JSON 可在事件详情中查看。无法识别的供应商事件会以 `category=unknown` 保留，不会中断运行。旧版事件文件不做迁移。
+
 每次运行写入 `runs/<run-id>/`：
 
 ```text

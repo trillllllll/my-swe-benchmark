@@ -44,6 +44,19 @@ def test_json_and_text_events_are_normalized():
     assert adapter.parse_event("plain output").kind == "text"
 
 
+def test_cli_events_have_semantic_fields_and_unknown_fallback():
+    adapter = get_adapter("codex")
+    command = adapter.parse_event('{"type":"item.started","item":{"type":"command_execution","command":"pytest -q"}}')
+    assert command is not None
+    assert command.category == "command"
+    assert command.title == "执行命令"
+    assert command.command == "pytest -q"
+    unknown = adapter.parse_event('{"type":"vendor.future_event","payload":{"x":1}}')
+    assert unknown is not None
+    assert unknown.category == "unknown"
+    assert unknown.raw["type"] == "vendor.future_event"
+
+
 def test_bare_real_cli_names_resolve_to_windows_wrappers(monkeypatch):
     monkeypatch.setattr(
         "bench.adapters.common.shutil.which",

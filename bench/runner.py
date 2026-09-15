@@ -404,6 +404,7 @@ async def execute_case_async(
                 "case_version": case.get("version", 1),
                 "agent_system": target.name,
                 "harness_version": harness_version,
+                "event_schema_version": 2,
                 "target": target.name,
                 "adapter": target.adapter,
                 "model": target.model,
@@ -460,6 +461,14 @@ async def execute_case_async(
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "target": target.name,
             "kind": event.kind,
+            "category": event.category,
+            "action": event.action,
+            "title": event.title,
+            "detail": event.detail,
+            "status": event.status,
+            "command": event.command,
+            "paths": list(event.paths),
+            "duration_ms": event.duration_ms,
             "source": event.source,
             "channel": event.channel,
             "tool": event.tool,
@@ -917,11 +926,13 @@ def _normalise_matrix_targets(
 
 
 def _print_live_event(event: dict[str, Any], target: str | None = None) -> None:
-    summary = event.get("summary") or event.get("tool") or event.get("kind")
+    summary = event.get("title") or event.get("summary") or event.get("tool") or event.get("kind")
+    detail = event.get("detail") or event.get("command")
     channel = event.get("channel") or "event"
     if summary:
         prefix = f"[{target}]" if target else ""
-        print(f"{prefix}[{channel}] {event['kind']}: {summary}", flush=True)
+        suffix = f" - {detail}" if detail and detail != summary else ""
+        print(f"{prefix}[{channel}] {summary}{suffix}", flush=True)
 
 
 def _read_prompt(path: Path) -> str:
